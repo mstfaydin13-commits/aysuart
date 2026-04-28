@@ -1,0 +1,131 @@
+import React from "react";
+import DuotonePhoto from "./DuotonePhoto";
+import StarMap from "./StarMap";
+import SpotifyQR from "./SpotifyQR";
+
+/**
+ * 30x50 vertical poster preview.
+ * Layout:
+ *   - Top: duotone photo
+ *   - Middle: quote (Playfair italic) + date (Cinzel)
+ *   - Bottom: large circular star map (dominant)
+ *   - Bottom-left: small city / zodiac / coordinates
+ *   - Bottom-right: Spotify QR (blends with star map tones)
+ */
+export default function PosterPreview({
+  photoUrl,
+  quote,
+  date,
+  city,
+  zodiac,
+  spotifyUrl,
+}) {
+  const formattedDate = formatPosterDate(date);
+  const coords = city ? formatCoords(city.lat, city.lon) : "";
+
+  return (
+    <div
+      data-testid="poster-preview"
+      className="relative mx-auto"
+      style={{
+        aspectRatio: "3 / 5",
+        width: "100%",
+        maxWidth: 420,
+        background: "linear-gradient(180deg, #0A1128 0%, #050B1F 60%, #040814 100%)",
+        border: "1px solid rgba(212,175,55,0.25)",
+        boxShadow: "0 30px 80px -20px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.04)",
+        overflow: "hidden",
+      }}
+    >
+      <div className="absolute inset-0 grain pointer-events-none" />
+
+      {/* PHOTO TOP - shorter so star map can be larger */}
+      <div className="relative" style={{ width: "100%", aspectRatio: "1 / 0.95" }}>
+        <DuotonePhoto
+          src={photoUrl}
+          width={840}
+          height={800}
+          shadow="#040814"
+          highlight="#B7C4DE"
+          fadeBottom={0.5}
+          vignette={0.55}
+        />
+      </div>
+
+      {/* CENTER QUOTE + DATE */}
+      <div className="relative px-6 -mt-12 text-center">
+        <p
+          data-testid="poster-quote"
+          className="font-display italic text-cream-50 leading-snug"
+          style={{
+            fontSize: "clamp(13px, 2.5vw, 21px)",
+            textShadow: "0 1px 6px rgba(0,0,0,0.6)",
+          }}
+        >
+          “{quote || "Yıldızlar bizi ilk burada gördü."}”
+        </p>
+        <div className="my-3 flex items-center justify-center gap-2">
+          <span className="h-px w-8 bg-gold/60" />
+          <span className="font-cinzel text-[10px] md:text-[11px] tracking-[0.4em] text-gold">
+            {formattedDate || "GG · AY · YYYY"}
+          </span>
+          <span className="h-px w-8 bg-gold/60" />
+        </div>
+      </div>
+
+      {/* STAR MAP - bottom, dominant */}
+      <div className="relative px-4 mt-3 flex justify-center">
+        <div style={{ width: "82%", maxWidth: 320 }}>
+          <StarMap
+            date={date || "2024-01-01"}
+            lat={city?.lat ?? 41.0082}
+            lon={city?.lon ?? 28.9784}
+            size={320}
+          />
+        </div>
+      </div>
+
+      {/* BOTTOM-LEFT: city · zodiac · coords (small, blended) */}
+      <div className="absolute bottom-3 left-4 max-w-[55%]">
+        <div
+          data-testid="poster-city"
+          className="font-cinzel text-[9px] md:text-[10px] tracking-[0.34em] text-cream-50/90 leading-tight"
+        >
+          {(city?.name || "İSTANBUL").toUpperCase()}
+        </div>
+        {zodiac ? (
+          <div className="font-mont text-[7.5px] md:text-[8.5px] tracking-[0.28em] text-cream-200/60 mt-0.5">
+            {zodiac.toUpperCase()} · BURÇ
+          </div>
+        ) : null}
+        <div className="font-mont text-[7px] md:text-[8px] tracking-[0.22em] text-cream-200/55 mt-0.5">
+          {coords}
+        </div>
+      </div>
+
+      {/* QR BOTTOM RIGHT */}
+      <div className="absolute bottom-3 right-3">
+        <SpotifyQR url={spotifyUrl} size={50} />
+      </div>
+    </div>
+  );
+}
+
+function formatPosterDate(d) {
+  if (!d) return "";
+  const dt = new Date(d);
+  if (isNaN(dt.getTime())) return "";
+  const months = [
+    "OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN",
+    "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK",
+  ];
+  return `${pad2(dt.getDate())} · ${months[dt.getMonth()]} · ${dt.getFullYear()}`;
+}
+
+function pad2(n) { return n < 10 ? `0${n}` : `${n}`; }
+
+function formatCoords(lat, lon) {
+  const ns = lat >= 0 ? "N" : "S";
+  const ew = lon >= 0 ? "E" : "W";
+  return `${Math.abs(lat).toFixed(4)}° ${ns}   ${Math.abs(lon).toFixed(4)}° ${ew}`;
+}
