@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, Response, Header, Query
+from fastapi import FastAPI, APIRouter, UploadFile, File, HTTPException, Response, Header, Query, Request, Depends
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -7,10 +7,12 @@ import logging
 import uuid
 import math
 import requests
+import bcrypt
+import jwt
 from pathlib import Path
 from pydantic import BaseModel, Field, ConfigDict, EmailStr
-from typing import List, Optional
-from datetime import datetime, timezone, date
+from typing import List, Optional, Literal
+from datetime import datetime, timezone, timedelta
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -23,12 +25,16 @@ db = client[os.environ['DB_NAME']]
 STORAGE_URL = "https://integrations.emergentagent.com/objstore/api/v1/storage"
 EMERGENT_KEY = os.environ.get("EMERGENT_LLM_KEY")
 APP_NAME = os.environ.get("APP_NAME", "aysu-art")
+JWT_SECRET = os.environ["JWT_SECRET"]
+JWT_ALGO = "HS256"
+ACCESS_TTL_HOURS = 24
 storage_key: Optional[str] = None
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
 
+# ---------- Storage ----------
 def init_storage() -> str:
     global storage_key
     if storage_key:
@@ -60,6 +66,69 @@ def get_object(path: str):
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 
+# ---------- Auth ----------
+def hash_password(pw: str) -> str:
+    return bcrypt.hashpw(pw.encode(), bcrypt.gensalt()).decode()
+
+
+def verify_password(pw: str, hashed: str) -> bool:
+    try:
+        return bcrypt.checkpw(pw.encode(), hashed.encode())
+    except Exception:
+        return False
+
+
+def create_access_token(user_id: str, email: str, role: str) -> str:
+    payload = {
+        "sub": user_id,
+        "email": email,
+        "role": role,
+        "exp": datetime.now(timezone.utc) + timedelta(hours=ACCESS_TTL_HOURS),
+        "type": "access",
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
+
+
+async def get_current_admin(authorization: Optional[str] = Header(default=None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Yetkisiz")
+    token = authorization[7:]
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Oturum süresi doldu")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+    if payload.get("type") != "access":
+        raise HTTPException(status_code=401, detail="Geçersiz token")
+    user = await db.users.find_one({"id": payload["sub"], "role": "admin"}, {"_id": 0, "password_hash": 0})
+    if not user:
+        raise HTTPException(status_code=401, detail="Kullanıcı bulunamadı")
+    return user
+
+
+async def seed_admin():
+    admin_email = os.environ.get("ADMIN_EMAIL", "admin@aysuart.com").lower()
+    admin_pw = os.environ.get("ADMIN_PASSWORD", "AysuArt2026!")
+    existing = await db.users.find_one({"email": admin_email})
+    if existing is None:
+        await db.users.insert_one({
+            "id": str(uuid.uuid4()),
+            "email": admin_email,
+            "password_hash": hash_password(admin_pw),
+            "name": "Aysu Admin",
+            "role": "admin",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        logger.info(f"Admin seeded: {admin_email}")
+    elif not verify_password(admin_pw, existing["password_hash"]):
+        await db.users.update_one(
+            {"email": admin_email},
+            {"$set": {"password_hash": hash_password(admin_pw)}},
+        )
+        logger.info("Admin password updated from .env")
+
+
 app = FastAPI(title="Aysu Art API")
 api_router = APIRouter(prefix="/api")
 
@@ -74,7 +143,7 @@ class UploadResponse(BaseModel):
 class OrderCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
     photo_file_id: str
-    memory_date: str  # ISO date string
+    memory_date: str
     city_name: str
     city_lat: float
     city_lon: float
@@ -86,6 +155,8 @@ class OrderCreate(BaseModel):
     customer_phone: str
     delivery_address: str
     notes: Optional[str] = ""
+    gift_package: Optional[bool] = False
+    message_card: Optional[bool] = False
 
 
 class Order(BaseModel):
@@ -104,8 +175,23 @@ class Order(BaseModel):
     customer_phone: str
     delivery_address: str
     notes: Optional[str] = ""
+    gift_package: bool = False
+    message_card: bool = False
     status: str = "pending"
     created_at: str
+
+
+class PublicMemory(BaseModel):
+    id: str
+    photo_file_id: str
+    photo_url: str
+    memory_date: str
+    city_name: str
+    city_lat: float
+    city_lon: float
+    quote_text: str
+    spotify_url: Optional[str] = ""
+    zodiac: Optional[str] = ""
 
 
 class StarMapRequest(BaseModel):
@@ -115,18 +201,33 @@ class StarMapRequest(BaseModel):
 
 
 class Star(BaseModel):
-    x: float  # 0..1 within the disk (centered: 0.5,0.5)
+    x: float
     y: float
-    mag: float  # 0..1 brightness
+    mag: float
 
 
 class StarMapResponse(BaseModel):
     stars: List[Star]
-    constellations: List[List[int]]  # pairs of star indices
+    constellations: List[List[int]]
     sidereal_angle: float
 
 
-# ---------- Routes ----------
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: dict
+
+
+class StatusUpdate(BaseModel):
+    status: Literal["pending", "approved", "in_production", "shipped", "completed", "cancelled"]
+
+
+# ---------- Public Routes ----------
 @api_router.get("/")
 async def root():
     return {"name": "Aysu Art API", "status": "ok"}
@@ -174,7 +275,11 @@ async def serve_file(file_id: str):
     except Exception as e:
         logger.error(f"Storage fetch failed: {e}")
         raise HTTPException(status_code=500, detail="Dosya alınamadı")
-    return Response(content=data, media_type=record.get("content_type", content_type))
+    return Response(
+        content=data,
+        media_type=record.get("content_type", content_type),
+        headers={"Access-Control-Allow-Origin": "*", "Cache-Control": "public, max-age=3600"},
+    )
 
 
 @api_router.post("/orders", response_model=Order)
@@ -200,6 +305,8 @@ async def create_order(payload: OrderCreate):
         "customer_phone": payload.customer_phone,
         "delivery_address": payload.delivery_address,
         "notes": payload.notes or "",
+        "gift_package": bool(payload.gift_package),
+        "message_card": bool(payload.message_card),
         "status": "pending",
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -215,11 +322,20 @@ async def get_order(order_id: str):
     return Order(**doc)
 
 
+@api_router.get("/memory/{order_id}", response_model=PublicMemory)
+async def get_public_memory(order_id: str):
+    doc = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Anı bulunamadı")
+    public_fields = {k: doc.get(k) for k in [
+        "id", "photo_file_id", "photo_url", "memory_date", "city_name",
+        "city_lat", "city_lon", "quote_text", "spotify_url", "zodiac",
+    ]}
+    return PublicMemory(**public_fields)
+
+
 @api_router.post("/starmap", response_model=StarMapResponse)
 async def compute_starmap(req: StarMapRequest):
-    """Procedural deterministic star map seeded by date+location.
-    Produces a believable circular star field with a few constellation lines.
-    """
     try:
         d = datetime.fromisoformat(req.date.replace("Z", ""))
     except Exception:
@@ -227,8 +343,6 @@ async def compute_starmap(req: StarMapRequest):
             d = datetime.strptime(req.date, "%Y-%m-%d")
         except Exception:
             raise HTTPException(status_code=400, detail="Geçersiz tarih")
-
-    # Seed
     seed = int(d.timestamp()) ^ int(req.lat * 1000) ^ int(req.lon * 1000)
     rng_state = [seed & 0xFFFFFFFF]
 
@@ -236,36 +350,29 @@ async def compute_starmap(req: StarMapRequest):
         rng_state[0] = (1103515245 * rng_state[0] + 12345) & 0x7FFFFFFF
         return rng_state[0] / 0x7FFFFFFF
 
-    # Sidereal-ish rotation angle from date for visual variation
     day_of_year = d.timetuple().tm_yday
     sidereal = (day_of_year / 365.25) * 360.0 + req.lon
 
     stars: List[Star] = []
     n = 220
     for _ in range(n):
-        # uniform disk distribution
         r = math.sqrt(rnd()) * 0.48
         theta = rnd() * 2 * math.pi
         x = 0.5 + r * math.cos(theta)
         y = 0.5 + r * math.sin(theta)
-        # brightness biased toward dim
         mag = (rnd() ** 2)
         stars.append(Star(x=x, y=y, mag=mag))
 
-    # constellations: pick a few clusters and connect nearest neighbors
-    # Build 4 polylines
     constellations: List[List[int]] = []
     bright_indices = sorted(range(n), key=lambda i: -stars[i].mag)[:40]
     used = set()
     for _ in range(4):
         line: List[int] = []
-        # pick a seed bright star
         for idx in bright_indices:
             if idx not in used:
                 line.append(idx)
                 used.add(idx)
                 break
-        # extend to 3-5 nearest
         target_len = 3 + int(rnd() * 3)
         while len(line) < target_len:
             last = line[-1]
@@ -292,9 +399,16 @@ async def compute_starmap(req: StarMapRequest):
     return StarMapResponse(stars=stars, constellations=constellations, sidereal_angle=sidereal)
 
 
-# Cities list - Turkish + a few major world cities
+# ---------- Cities ----------
+def _norm(s: str) -> str:
+    repl = {"ı": "i", "İ": "i", "ş": "s", "Ş": "s", "ğ": "g", "Ğ": "g",
+            "ü": "u", "Ü": "u", "ö": "o", "Ö": "o", "ç": "c", "Ç": "c"}
+    for k, v in repl.items():
+        s = s.replace(k, v)
+    return s.lower().strip()
+
+
 CITIES = [
-    # Türkiye - 81 il
     {"name": "İstanbul", "lat": 41.0082, "lon": 28.9784, "country": "Türkiye"},
     {"name": "Ankara", "lat": 39.9334, "lon": 32.8597, "country": "Türkiye"},
     {"name": "İzmir", "lat": 38.4192, "lon": 27.1287, "country": "Türkiye"},
@@ -376,7 +490,6 @@ CITIES = [
     {"name": "Şırnak", "lat": 37.4187, "lon": 42.4918, "country": "Türkiye"},
     {"name": "Siirt", "lat": 37.9333, "lon": 41.9500, "country": "Türkiye"},
     {"name": "Adıyaman", "lat": 37.7648, "lon": 38.2786, "country": "Türkiye"},
-    # Yurt dışı popüler
     {"name": "Paris", "lat": 48.8566, "lon": 2.3522, "country": "Fransa"},
     {"name": "Londra", "lat": 51.5074, "lon": -0.1278, "country": "İngiltere"},
     {"name": "Roma", "lat": 41.9028, "lon": 12.4964, "country": "İtalya"},
@@ -400,14 +513,6 @@ CITIES = [
 ]
 
 
-def _norm(s: str) -> str:
-    repl = {"ı": "i", "İ": "i", "ş": "s", "Ş": "s", "ğ": "g", "Ğ": "g",
-            "ü": "u", "Ü": "u", "ö": "o", "Ö": "o", "ç": "c", "Ç": "c"}
-    for k, v in repl.items():
-        s = s.replace(k, v)
-    return s.lower().strip()
-
-
 @api_router.get("/cities")
 async def list_cities(q: Optional[str] = Query(default=None)):
     if not q:
@@ -417,11 +522,58 @@ async def list_cities(q: Optional[str] = Query(default=None)):
     return {"cities": filtered[:50]}
 
 
+# ---------- Auth Endpoints ----------
+@api_router.post("/auth/login", response_model=LoginResponse)
+async def login(payload: LoginRequest):
+    email = payload.email.lower().strip()
+    user = await db.users.find_one({"email": email})
+    if not user or not verify_password(payload.password, user["password_hash"]):
+        raise HTTPException(status_code=401, detail="E-posta veya parola hatalı")
+    token = create_access_token(user["id"], user["email"], user.get("role", "admin"))
+    safe_user = {
+        "id": user["id"],
+        "email": user["email"],
+        "name": user.get("name", ""),
+        "role": user.get("role", "admin"),
+    }
+    return LoginResponse(access_token=token, user=safe_user)
+
+
+@api_router.get("/auth/me")
+async def auth_me(admin: dict = Depends(get_current_admin)):
+    return admin
+
+
+# ---------- Admin Endpoints ----------
+@api_router.get("/admin/orders")
+async def admin_list_orders(admin: dict = Depends(get_current_admin)):
+    cursor = db.orders.find({}, {"_id": 0}).sort("created_at", -1)
+    orders = await cursor.to_list(1000)
+    return {"orders": orders}
+
+
+@api_router.get("/admin/orders/{order_id}")
+async def admin_get_order(order_id: str, admin: dict = Depends(get_current_admin)):
+    doc = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Sipariş bulunamadı")
+    return doc
+
+
+@api_router.patch("/admin/orders/{order_id}")
+async def admin_update_status(order_id: str, payload: StatusUpdate, admin: dict = Depends(get_current_admin)):
+    res = await db.orders.update_one({"id": order_id}, {"$set": {"status": payload.status}})
+    if res.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Sipariş bulunamadı")
+    doc = await db.orders.find_one({"id": order_id}, {"_id": 0})
+    return doc
+
+
 app.include_router(api_router)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True,
+    allow_credentials=False,  # Bearer header used; no cookies
     allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
     allow_methods=["*"],
     allow_headers=["*"],
@@ -435,6 +587,11 @@ async def startup():
         logger.info("Storage initialized")
     except Exception as e:
         logger.error(f"Storage init failed: {e}")
+    try:
+        await db.users.create_index("email", unique=True)
+        await seed_admin()
+    except Exception as e:
+        logger.error(f"Admin seed failed: {e}")
 
 
 @app.on_event("shutdown")

@@ -1,17 +1,32 @@
 import React, { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Share2, Copy, Check } from "lucide-react";
 import { api } from "../lib/api";
 import PosterPreview from "../components/poster/PosterPreview";
+import { toast } from "sonner";
 
 export default function OrderSuccess() {
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     api.get(`/orders/${id}`).then((r) => setOrder(r.data)).finally(() => setLoading(false));
   }, [id]);
+
+  const shareUrl = order ? `${window.location.origin}/memory/${order.id}` : "";
+
+  const copyShare = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      toast.success("Bağlantı panoya kopyalandı");
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error("Kopyalama başarısız");
+    }
+  };
 
   if (loading) {
     return (
@@ -20,11 +35,7 @@ export default function OrderSuccess() {
       </div>
     );
   }
-  if (!order) {
-    return (
-      <div className="py-32 text-center font-mont text-cream-200/80">Sipariş bulunamadı.</div>
-    );
-  }
+  if (!order) return <div className="py-32 text-center font-mont text-cream-200/80">Sipariş bulunamadı.</div>;
 
   const photoUrl = `${process.env.REACT_APP_BACKEND_URL}${order.photo_url}`;
 
@@ -49,7 +60,12 @@ export default function OrderSuccess() {
             city={{ name: order.city_name, lat: order.city_lat, lon: order.city_lon }}
             zodiac={order.zodiac}
             spotifyUrl={order.spotify_url}
+            watermark
+            protect
           />
+          <p className="mt-3 font-mont text-[10px] tracking-widest text-cream-200/45 text-center">
+            ÖRNEK ÖNİZLEME · GERÇEK ÜRÜN PLEKSİ ÜZERİNE BASKI ALACAKTIR
+          </p>
         </div>
         <div className="space-y-5 font-mont text-sm text-cream-200/85">
           <Detail label="MÜŞTERİ" value={order.customer_name} />
@@ -59,7 +75,32 @@ export default function OrderSuccess() {
           <Detail label="TARİH" value={order.memory_date} />
           {order.zodiac ? <Detail label="BURÇ" value={order.zodiac} /> : null}
           <Detail label="ADRES" value={order.delivery_address} multiline />
+          <Detail label="EKSTRALAR" value={[
+            order.gift_package ? "Hediye Paketi" : null,
+            order.message_card ? "Mesaj Kartı" : null,
+          ].filter(Boolean).join(" · ") || "—"} />
           {order.notes ? <Detail label="NOT" value={order.notes} multiline /> : null}
+
+          <div className="pt-4 border-t border-cream-50/10">
+            <div className="font-cinzel text-[10px] tracking-[0.4em] text-gold mb-3">PAYLAŞILABİLİR ANI BAĞLANTISI</div>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <input
+                readOnly
+                value={shareUrl}
+                data-testid="share-url-input"
+                onFocus={(e) => e.target.select()}
+                className="flex-1 bg-midnight-900 border border-cream-50/10 px-3 py-2 font-mono text-xs text-cream-200/80 rounded-sm"
+              />
+              <button onClick={copyShare} data-testid="share-copy-btn" className="btn-ghost text-xs whitespace-nowrap">
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? "Kopyalandı" : "Bağlantıyı Kopyala"}
+              </button>
+            </div>
+            <p className="mt-2 font-mont text-[11px] text-cream-200/45">
+              Bu sayfa sevdiklerinle paylaşıldığında onlar da yıldızlarını görebilir. Kişisel bilgilerin görünmez.
+            </p>
+          </div>
+
           <div className="pt-6">
             <Link to="/" className="btn-ghost" data-testid="back-home-btn">Anasayfaya Dön</Link>
           </div>

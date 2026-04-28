@@ -5,12 +5,10 @@ import SpotifyQR from "./SpotifyQR";
 
 /**
  * 30x50 vertical poster preview.
- * Layout:
- *   - Top: duotone photo
- *   - Middle: quote (Playfair italic) + date (Cinzel)
- *   - Bottom: large circular star map (dominant)
- *   - Bottom-left: small city / zodiac / coordinates
- *   - Bottom-right: Spotify QR (blends with star map tones)
+ * Props:
+ *   watermark: bool — overlays repeating ÖRNEK · AYSU ART (anti-piracy)
+ *   protect: bool — disables right-click and selection
+ *   id: string — used by html2canvas to target
  */
 export default function PosterPreview({
   photoUrl,
@@ -19,13 +17,25 @@ export default function PosterPreview({
   city,
   zodiac,
   spotifyUrl,
+  watermark = false,
+  protect = false,
+  id,
 }) {
   const formattedDate = formatPosterDate(date);
   const coords = city ? formatCoords(city.lat, city.lon) : "";
 
+  const protectProps = protect
+    ? {
+        onContextMenu: (e) => e.preventDefault(),
+        onDragStart: (e) => e.preventDefault(),
+        style: { userSelect: "none", WebkitUserSelect: "none" },
+      }
+    : {};
+
   return (
     <div
       data-testid="poster-preview"
+      id={id}
       className="relative mx-auto"
       style={{
         aspectRatio: "3 / 5",
@@ -35,11 +45,13 @@ export default function PosterPreview({
         border: "1px solid rgba(212,175,55,0.25)",
         boxShadow: "0 30px 80px -20px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.04)",
         overflow: "hidden",
+        ...(protectProps.style || {}),
       }}
+      onContextMenu={protectProps.onContextMenu}
+      onDragStart={protectProps.onDragStart}
     >
       <div className="absolute inset-0 grain pointer-events-none" />
 
-      {/* PHOTO TOP - shorter so star map can be larger */}
       <div className="relative" style={{ width: "100%", aspectRatio: "1 / 0.95" }}>
         <DuotonePhoto
           src={photoUrl}
@@ -52,7 +64,6 @@ export default function PosterPreview({
         />
       </div>
 
-      {/* CENTER QUOTE + DATE */}
       <div className="relative px-6 -mt-12 text-center">
         <p
           data-testid="poster-quote"
@@ -73,7 +84,6 @@ export default function PosterPreview({
         </div>
       </div>
 
-      {/* STAR MAP - bottom, dominant */}
       <div className="relative px-4 mt-3 flex justify-center">
         <div style={{ width: "82%", maxWidth: 320 }}>
           <StarMap
@@ -85,7 +95,6 @@ export default function PosterPreview({
         </div>
       </div>
 
-      {/* BOTTOM-LEFT: city · zodiac · coords (small, blended) */}
       <div className="absolute bottom-3 left-4 max-w-[55%]">
         <div
           data-testid="poster-city"
@@ -103,9 +112,49 @@ export default function PosterPreview({
         </div>
       </div>
 
-      {/* QR BOTTOM RIGHT */}
       <div className="absolute bottom-3 right-3">
         <SpotifyQR url={spotifyUrl} size={50} />
+      </div>
+
+      {watermark ? <Watermark /> : null}
+    </div>
+  );
+}
+
+function Watermark() {
+  // Repeating diagonal "ÖRNEK · AYSU ART" overlay
+  const lines = Array.from({ length: 14 });
+  return (
+    <div
+      aria-hidden="true"
+      className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
+      data-testid="poster-watermark"
+    >
+      <div
+        className="origin-center"
+        style={{ transform: "rotate(-30deg)", width: "200%", height: "200%" }}
+      >
+        {lines.map((_, i) => (
+          <div
+            key={i}
+            className="font-cinzel whitespace-nowrap"
+            style={{
+              fontSize: 18,
+              letterSpacing: "0.55em",
+              color: "rgba(212,175,55,0.16)",
+              padding: "16px 0",
+              textAlign: "center",
+            }}
+          >
+            ÖRNEK · AYSU ART · ÖRNEK · AYSU ART · ÖRNEK · AYSU ART
+          </div>
+        ))}
+      </div>
+      <div
+        className="absolute top-3 right-3 font-cinzel text-[9px] tracking-[0.45em]"
+        style={{ color: "rgba(212,175,55,0.55)" }}
+      >
+        PROOF
       </div>
     </div>
   );

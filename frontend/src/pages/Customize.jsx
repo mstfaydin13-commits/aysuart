@@ -27,6 +27,8 @@ export default function Customize() {
   const [customerPhone, setCustomerPhone] = useState("");
   const [deliveryAddress, setDeliveryAddress] = useState("");
   const [notes, setNotes] = useState("");
+  const [giftPackage, setGiftPackage] = useState(false);
+  const [messageCard, setMessageCard] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -81,6 +83,8 @@ export default function Customize() {
         customer_phone: customerPhone.trim(),
         delivery_address: deliveryAddress.trim(),
         notes: notes.trim(),
+        gift_package: giftPackage,
+        message_card: messageCard,
       };
       const res = await api.post("/orders", payload);
       toast.success("Sipariş oluşturuldu");
@@ -230,6 +234,30 @@ export default function Customize() {
             </Field>
           </div>
 
+          {/* Upsell — Hediye Paketi & Mesaj Kartı */}
+          <div className="pt-2">
+            <span className="font-cinzel text-[11px] tracking-[0.45em] text-gold">06 · ÖZEL DOKUNUŞ</span>
+            <p className="mt-2 mb-4 font-mont text-xs text-cream-200/55">
+              Tablonuzu unutulmaz bir hediyeye dönüştürmek için aşağıdaki seçenekleri ekleyebilirsiniz.
+            </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <UpsellOption
+                checked={giftPackage}
+                onChange={setGiftPackage}
+                title="Premium Hediye Paketi"
+                desc="Kraft kutu · altın kurdele · özel teslim ambalajı"
+                testId="upsell-gift-package"
+              />
+              <UpsellOption
+                checked={messageCard}
+                onChange={setMessageCard}
+                title="Elle Yazılmış Mesaj Kartı"
+                desc="Cinzel font · altın baskılı · sevdiğine özel not"
+                testId="upsell-message-card"
+              />
+            </div>
+          </div>
+
           <div className="pt-2">
             <button type="submit" disabled={submitting} className="btn-gold" data-testid="submit-order-btn">
               {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
@@ -284,5 +312,34 @@ function Input({ value, onChange, type = "text", placeholder, testId }) {
       data-testid={testId}
       className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm"
     />
+  );
+}
+
+function UpsellOption({ checked, onChange, title, desc, testId }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      data-testid={testId}
+      className={`text-left p-5 border transition group ${
+        checked
+          ? "border-gold bg-gold/5"
+          : "border-cream-50/10 bg-midnight-900/40 hover:border-gold/40"
+      }`}
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className={`w-5 h-5 mt-0.5 border flex items-center justify-center shrink-0 ${
+            checked ? "bg-gold border-gold" : "border-cream-50/25"
+          }`}
+        >
+          {checked ? <span className="text-midnight-950 text-xs">✓</span> : null}
+        </div>
+        <div>
+          <div className="font-display text-base text-cream-50">{title}</div>
+          <div className="mt-1 font-mont text-xs text-cream-200/65">{desc}</div>
+        </div>
+      </div>
+    </button>
   );
 }
