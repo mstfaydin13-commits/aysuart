@@ -1,0 +1,149 @@
+{
+  "project_name": "Aysu Art",
+  "domain": "Premium E-commerce (Art/Gifts)",
+  "theme": "Dark",
+  "archetype": "5 (Jewel & Luxury)",
+  "emotional_tone": [
+    "Romantic",
+    "Sophisticated",
+    "Premium",
+    "Celestial",
+    "Timeless"
+  ],
+  "colors": {
+    "background": {
+      "primary": "#040814",
+      "secondary": "#0A1128",
+      "tertiary": "#121A33"
+    },
+    "text": {
+      "primary": "#FDFBF7",
+      "secondary": "#C8B9A6",
+      "muted": "#8A94A6"
+    },
+    "accent": {
+      "gold": "#D4AF37",
+      "gold_muted": "#B89947",
+      "navy_light": "#1C2B4F"
+    },
+    "forbidden_colors": [
+      "#1B93A4",
+      "#9D4CDD",
+      "#7351B7",
+      "#000000"
+    ]
+  },
+  "typography": {
+    "headings": {
+      "family": "Playfair Display, serif",
+      "weights": [
+        400,
+        500,
+        600,
+        700
+      ],
+      "usage": "Hero titles, main section headers, the personalized quote on the poster"
+    },
+    "subheadings": {
+      "family": "Cinzel, serif",
+      "weights": [
+        400,
+        600
+      ],
+      "usage": "Dates, overlines, secondary navigational headers"
+    },
+    "body": {
+      "family": "Montserrat, sans-serif",
+      "weights": [
+        300,
+        400,
+        500
+      ],
+      "usage": "Coordinates, small text, UI elements, button labels, descriptions"
+    },
+    "forbidden_fonts": [
+      "Inter",
+      "Roboto",
+      "Open Sans",
+      "Lato",
+      "Syne",
+      "Space Grotesk"
+    ]
+  },
+  "layout_and_spacing": {
+    "philosophy": "Generous Spacing Philosophy. Use 2-3x more spacing. Elements must breathe like a high-end art gallery.",
+    "container_padding": "p-8 md:p-16 lg:p-24",
+    "grid_strategy": "The Tetris Grid (Mode A) for marketing sections. The Control Room Grid (Mode B) for the customization controls.",
+    "alignment": "Left-align paragraphs, inputs, labels. Center-align hero headings and poster contents to build symmetry inside the artwork."
+  },
+  "surface_strategies": {
+    "header": "Crystal Glass: backdrop-blur-xl bg-[#040814]/60 border-b border-[#FDFBF7]/10.",
+    "cards_and_controls": "Flat solid surfaces: bg-[#0A1128], 1px border border-[#FDFBF7]/10, subtle drop-shadow.",
+    "poster_canvas": "Neumorphism tactile variant: subtle drop shadow and crisp inner border to simulate a thick 30x50 physical canvas."
+  },
+  "interactions_and_motion": {
+    "hover_states": "Buttons use hover:bg-[#B89947] hover:text-[#040814]. Links use subtle opacity fade or gold underline.",
+    "page_transitions": "Framer motion for smooth fade-ins and staggered list items.",
+    "scroll": "Use Lenis for premium smooth momentum scrolling."
+  },
+  "media": {
+    "images": [
+      {
+        "id": "hero_bg",
+        "category": "background",
+        "url": "https://images.unsplash.com/photo-1598349929619-d994011482ad?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwxfHxkYXJrJTIwc3RhcnJ5JTIwbmlnaHQlMjBza3klMjB0ZXh0dXJlfGVufDB8fHx8MTc3NzQxMjM0M3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Dark starry night sky for the hero background.",
+        "usage_instructions": "Use as a full-screen or large section background with a dark overlay (bg-[#040814]/70) to ensure text readability."
+      },
+      {
+        "id": "couple_photo_1",
+        "category": "product_placeholder",
+        "url": "https://images.unsplash.com/photo-1743642638516-6e26674b8372?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwyfHxyb21hbnRpYyUyMGNvdXBsZSUyMGJsYWNrJTIwYW5kJTIwd2hpdGV8ZW58MHx8fHwxNzc3NDEyMzMyfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Romantic couple kissing under street lamp.",
+        "usage_instructions": "Use as default uploaded image in the poster customization preview."
+      },
+      {
+        "id": "couple_photo_2",
+        "category": "gallery_item",
+        "url": "https://images.unsplash.com/photo-1743642638414-d2260235c7bc?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NDh8MHwxfHNlYXJjaHwzfHxyb21hbnRpYyUyMGNvdXBsZSUyMGJsYWNrJTIwYW5kJTIwd2hpdGV8ZW58MHx8fHwxNzc3NDEyMzMyfDA&ixlib=rb-4.1.0&q=85",
+        "description": "Couple embracing.",
+        "usage_instructions": "Use in the gallery section showcasing framed posters."
+      },
+      {
+        "id": "couple_photo_3",
+        "category": "gallery_item",
+        "url": "https://images.pexels.com/photos/31743605/pexels-photo-31743605.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Silhouette of couple facing each other.",
+        "usage_instructions": "Use in the gallery or storytelling section."
+      },
+      {
+        "id": "canvas_texture",
+        "category": "texture",
+        "url": "https://images.unsplash.com/photo-1614580378008-bb0fee1ade02?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTZ8MHwxfHNlYXJjaHwyfHxkYXJrJTIwc3RhcnJ5JTIwbmlnaHQlMjBza3klMjB0ZXh0dXJlfGVufDB8fHx8MTc3NzQxMjM0M3ww&ixlib=rb-4.1.0&q=85",
+        "description": "Blue and black sky with stars.",
+        "usage_instructions": "Use as a subtle overlay texture with mix-blend-mode for the star map circle."
+      }
+    ],
+    "icons": {
+      "library": "lucide-react",
+      "style": "Thin, elegant strokes (stroke-width 1.5)."
+    }
+  },
+  "specific_feature_instructions": {
+    "poster_canvas": {
+      "aspect_ratio": "30:50 (Vertical)",
+      "photo_treatment": "Must use CSS filters for Duotone/Gradient Map (convert to grayscale, apply navy/dark blue tint). Bottom of photo must gradient fade into the deep navy background. Apply a dark vignette to top, left, and right edges.",
+      "text_placement": "Center of canvas. Quote in Playfair Display, Date in Cinzel.",
+      "star_map": "Circular form located at the bottom half. Use realistic coordinate mapping or SVG star patterns. Constellations in soft gold. Must blend into the navy background.",
+      "qr_code": "Bottom right corner. Dark blue background merging with star map. Scan link goes to Spotify."
+    },
+    "components": {
+      "form_controls": "Use highly customized Shadcn components (Inputs, Selects). Remove Vercel default styles. Apply dark theme colors and 1px gold/white-10 borders.",
+      "upload_button": "Make it prominent with a dashed gold border and hover state.",
+      "live_preview": "Must be sticky on desktop while scrolling through customization options."
+    }
+  },
+  "testing": {
+    "attributes": "All interactive elements (buttons, inputs, preview toggles) MUST have data-testid attributes."
+  }
+}
