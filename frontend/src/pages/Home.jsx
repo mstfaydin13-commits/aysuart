@@ -28,7 +28,7 @@ function Hero() {
             O gece gökyüzü sizin için <em className="italic text-gold">böyleydi</em>.
           </h1>
           <p className="mt-7 font-mont text-base md:text-lg text-cream-200/85 max-w-xl leading-relaxed">
-            Sevdiğiniz an, sevdiğiniz fotoğraf, sevdiğiniz şarkı… 30×50 cm premium pleksi üzerinde
+            Sevdiğiniz an, sevdiğiniz fotoğraf, sevdiğiniz şarkı… 15×20 cm masaüstü premium pleksi üzerinde
             gerçek yıldız haritası, duotone portre ve Spotify QR koduyla buluşuyor. Eşsiz bir
             hediye, ölümsüz bir hatıra.
           </p>
@@ -41,7 +41,7 @@ function Hero() {
             </Link>
           </div>
           <div className="mt-12 flex items-center gap-8 font-mont text-[11px] tracking-[0.25em] text-cream-200/60">
-            <div>30×50 CM · PLEKSİ</div>
+            <div>15×20 CM · MASAÜSTÜ</div>
             <div className="hidden sm:block">·</div>
             <div>EL İŞÇİLİĞİ</div>
             <div className="hidden sm:block">·</div>
@@ -131,7 +131,7 @@ function ProcessSection() {
     { n: "01", t: "Anınızı Seçin", d: "Sizin için özel olan tarihi, şehri ve fotoğrafı belirleyin." },
     { n: "02", t: "Şarkınızı Ekleyin", d: "Spotify linkini paylaşın, tablonun köşesine QR olarak işlensin." },
     { n: "03", t: "Sözünüzü Yazın", d: "Tablonun ortasında yer alacak, kalbinizden bir cümle." },
-    { n: "04", t: "Üretim & Teslim", d: "30×50 pleksi üzerinde el işçiliğiyle üretip kapınıza ulaştırırız." },
+    { n: "04", t: "Üretim & Teslim", d: "15×20 cm masaüstü pleksi üzerinde el işçiliğiyle üretip kapınıza ulaştırırız." },
   ];
   return (
     <section className="relative bg-midnight-900/40 border-y border-cream-50/10">

@@ -89,7 +89,7 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
     return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGO)
 
 
-async def get_current_admin(authorization: Optional[str] = Header(default=None)) -> dict:
+async def get_current_user(authorization: Optional[str] = Header(default=None)) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Yetkisiz")
     token = authorization[7:]
@@ -101,9 +101,16 @@ async def get_current_admin(authorization: Optional[str] = Header(default=None))
         raise HTTPException(status_code=401, detail="Geçersiz token")
     if payload.get("type") != "access":
         raise HTTPException(status_code=401, detail="Geçersiz token")
-    user = await db.users.find_one({"id": payload["sub"], "role": "admin"}, {"_id": 0, "password_hash": 0})
+    user = await db.users.find_one({"id": payload["sub"]}, {"_id": 0, "password_hash": 0})
     if not user:
         raise HTTPException(status_code=401, detail="Kullanıcı bulunamadı")
+    return user
+
+
+async def get_current_admin(authorization: Optional[str] = Header(default=None)) -> dict:
+    user = await get_current_user(authorization)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Yetki yetersiz")
     return user
 
 
@@ -143,6 +150,7 @@ class UploadResponse(BaseModel):
 class OrderCreate(BaseModel):
     model_config = ConfigDict(extra="ignore")
     photo_file_id: str
+    photo_style: Optional[str] = "duotone"
     memory_date: str
     city_name: str
     city_lat: float
@@ -163,6 +171,7 @@ class Order(BaseModel):
     id: str
     photo_file_id: str
     photo_url: str
+    photo_style: str = "duotone"
     memory_date: str
     city_name: str
     city_lat: float
@@ -185,6 +194,7 @@ class PublicMemory(BaseModel):
     id: str
     photo_file_id: str
     photo_url: str
+    photo_style: str = "duotone"
     memory_date: str
     city_name: str
     city_lat: float
@@ -215,6 +225,13 @@ class StarMapResponse(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+    name: str
+    phone: Optional[str] = ""
 
 
 class LoginResponse(BaseModel):
@@ -293,6 +310,7 @@ async def create_order(payload: OrderCreate):
         "id": order_id,
         "photo_file_id": payload.photo_file_id,
         "photo_url": f"/api/files/{payload.photo_file_id}",
+        "photo_style": (payload.photo_style or "duotone"),
         "memory_date": payload.memory_date,
         "city_name": payload.city_name,
         "city_lat": payload.city_lat,
@@ -328,9 +346,13 @@ async def get_public_memory(order_id: str):
     if not doc:
         raise HTTPException(status_code=404, detail="Anı bulunamadı")
     public_fields = {k: doc.get(k) for k in [
-        "id", "photo_file_id", "photo_url", "memory_date", "city_name",
+        "id", "photo_file_id", "photo_url", "photo_style", "memory_date", "city_name",
         "city_lat", "city_lon", "quote_text", "spotify_url", "zodiac",
     ]}
+    # backward-compat default
+    public_fields.setdefault("photo_style", "duotone")
+    if public_fields.get("photo_style") is None:
+        public_fields["photo_style"] = "duotone"
     return PublicMemory(**public_fields)
 
 
@@ -523,25 +545,56 @@ async def list_cities(q: Optional[str] = Query(default=None)):
 
 
 # ---------- Auth Endpoints ----------
+@api_router.post("/auth/register", response_model=LoginResponse)
+async def register(payload: RegisterRequest):
+    email = payload.email.lower().strip()
+    if len(payload.password) < 6:
+        raise HTTPException(status_code=400, detail="Parola en az 6 karakter olmalı")
+    existing = await db.users.find_one({"email": email})
+    if existing:
+        raise HTTPException(status_code=400, detail="Bu e-posta zaten kayıtlı")
+    user_id = str(uuid.uuid4())
+    await db.users.insert_one({
+        "id": user_id,
+        "email": email,
+        "password_hash": hash_password(payload.password),
+        "name": payload.name.strip(),
+        "phone": (payload.phone or "").strip(),
+        "role": "customer",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    token = create_access_token(user_id, email, "customer")
+    return LoginResponse(access_token=token, user={
+        "id": user_id, "email": email, "name": payload.name.strip(), "role": "customer",
+    })
+
+
 @api_router.post("/auth/login", response_model=LoginResponse)
 async def login(payload: LoginRequest):
     email = payload.email.lower().strip()
     user = await db.users.find_one({"email": email})
     if not user or not verify_password(payload.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="E-posta veya parola hatalı")
-    token = create_access_token(user["id"], user["email"], user.get("role", "admin"))
+    token = create_access_token(user["id"], user["email"], user.get("role", "customer"))
     safe_user = {
         "id": user["id"],
         "email": user["email"],
         "name": user.get("name", ""),
-        "role": user.get("role", "admin"),
+        "role": user.get("role", "customer"),
     }
     return LoginResponse(access_token=token, user=safe_user)
 
 
 @api_router.get("/auth/me")
-async def auth_me(admin: dict = Depends(get_current_admin)):
-    return admin
+async def auth_me(user: dict = Depends(get_current_user)):
+    return user
+
+
+@api_router.get("/me/orders")
+async def my_orders(user: dict = Depends(get_current_user)):
+    cursor = db.orders.find({"customer_email": user["email"]}, {"_id": 0}).sort("created_at", -1)
+    orders = await cursor.to_list(500)
+    return {"orders": orders}
 
 
 # ---------- Admin Endpoints ----------

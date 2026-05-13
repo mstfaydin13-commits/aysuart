@@ -1,13 +1,20 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Upload, Loader2, ChevronRight } from "lucide-react";
 import { api, fileUrl } from "../lib/api";
 import PosterPreview from "../components/poster/PosterPreview";
 import CitySelect from "../components/CitySelect";
-import { zodiacFromDate } from "../data/zodiac";
 import { toast } from "sonner";
 
 const DEFAULT_CITY = { name: "İstanbul", lat: 41.0082, lon: 28.9784, country: "Türkiye" };
+
+const PHOTO_STYLES = [
+  { value: "duotone", label: "DUOTONE", sub: "Navy & Gece" },
+  { value: "sepia", label: "SEPIA", sub: "Sıcak Antik" },
+  { value: "bw", label: "SİYAH BEYAZ", sub: "Klasik" },
+  { value: "sketch", label: "KARAKALEM", sub: "Eskiz" },
+  { value: "original", label: "ORİJİNAL", sub: "Renkli" },
+];
 
 export default function Customize() {
   const fileInputRef = useRef(null);
@@ -17,6 +24,7 @@ export default function Customize() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [uploading, setUploading] = useState(false);
 
+  const [photoStyle, setPhotoStyle] = useState("duotone");
   const [date, setDate] = useState("2024-08-14");
   const [city, setCity] = useState(DEFAULT_CITY);
   const [quote, setQuote] = useState("Yıldızlar bizi ilk burada gördü.");
@@ -32,19 +40,11 @@ export default function Customize() {
 
   const [submitting, setSubmitting] = useState(false);
 
-  const zodiac = useMemo(() => zodiacFromDate(date), [date]);
-
   const handleFile = async (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith("image/")) {
-      toast.error("Lütfen bir resim dosyası seçin");
-      return;
-    }
-    if (f.size > 10 * 1024 * 1024) {
-      toast.error("Dosya en fazla 10MB olmalı");
-      return;
-    }
+    if (!f.type.startsWith("image/")) return toast.error("Lütfen bir resim dosyası seçin");
+    if (f.size > 10 * 1024 * 1024) return toast.error("Dosya en fazla 10MB olmalı");
     setUploading(true);
     try {
       const fd = new FormData();
@@ -53,7 +53,7 @@ export default function Customize() {
       setPhotoFileId(res.data.file_id);
       setPhotoUrl(fileUrl(res.data.file_id));
       toast.success("Fotoğraf yüklendi");
-    } catch (err) {
+    } catch {
       toast.error("Yükleme başarısız oldu");
     } finally {
       setUploading(false);
@@ -71,13 +71,13 @@ export default function Customize() {
     try {
       const payload = {
         photo_file_id: photoFileId,
+        photo_style: photoStyle,
         memory_date: date,
         city_name: city.name,
         city_lat: city.lat,
         city_lon: city.lon,
         quote_text: quote.trim(),
         spotify_url: spotifyUrl.trim(),
-        zodiac,
         customer_name: customerName.trim(),
         customer_email: customerEmail.trim(),
         customer_phone: customerPhone.trim(),
@@ -113,41 +113,55 @@ export default function Customize() {
         <form onSubmit={onSubmit} className="lg:col-span-7 space-y-10">
           {/* 1 · Fotoğraf */}
           <Field label="01 · FOTOĞRAF">
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFile}
-              className="hidden"
-              data-testid="photo-input"
-            />
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFile} className="hidden" data-testid="photo-input" />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
               data-testid="photo-upload-btn"
-              className="w-full border border-dashed border-gold/40 hover:border-gold bg-midnight-900/50 px-6 py-10 text-center transition group"
+              className="w-full border border-dashed border-gold/40 hover:border-gold bg-midnight-900/50 px-6 py-10 text-center transition"
             >
-              {uploading ? (
-                <Loader2 className="w-6 h-6 mx-auto animate-spin text-gold" />
-              ) : photoUrl ? (
-                <div className="flex items-center justify-center gap-4">
-                  <img src={photoUrl} alt="ön izleme" className="w-14 h-14 object-cover" />
-                  <span className="font-mont text-sm text-cream-200/80">Fotoğraf yüklendi · Değiştirmek için tıklayın</span>
-                </div>
-              ) : (
-                <>
-                  <Upload className="w-7 h-7 mx-auto text-gold" strokeWidth={1.4} />
-                  <div className="mt-3 font-cinzel text-[11px] tracking-[0.35em] text-gold">FOTOĞRAFINIZI SEÇİN</div>
-                  <div className="mt-2 font-mont text-xs text-cream-200/60">JPG, PNG · Maks. 10MB · Önerilen 2000×2000+</div>
-                </>
-              )}
+              {uploading ? <Loader2 className="w-6 h-6 mx-auto animate-spin text-gold" /> :
+                photoUrl ? (
+                  <div className="flex items-center justify-center gap-4">
+                    <img src={photoUrl} alt="ön izleme" className="w-14 h-14 object-cover" />
+                    <span className="font-mont text-sm text-cream-200/80">Fotoğraf yüklendi · Değiştirmek için tıklayın</span>
+                  </div>
+                ) : (
+                  <>
+                    <Upload className="w-7 h-7 mx-auto text-gold" strokeWidth={1.4} />
+                    <div className="mt-3 font-cinzel text-[11px] tracking-[0.35em] text-gold">FOTOĞRAFINIZI SEÇİN</div>
+                    <div className="mt-2 font-mont text-xs text-cream-200/60">JPG, PNG · Maks. 10MB · Yüksek çözünürlüklü portre</div>
+                  </>
+                )}
             </button>
+          </Field>
+
+          {/* Sanat Stili */}
+          <Field label="SANAT STİLİ">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+              {PHOTO_STYLES.map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  onClick={() => setPhotoStyle(s.value)}
+                  data-testid={`photo-style-${s.value}`}
+                  className={`px-3 py-3 border text-center transition ${
+                    photoStyle === s.value
+                      ? "border-gold bg-gold/10"
+                      : "border-cream-50/10 bg-midnight-900/40 hover:border-gold/40"
+                  }`}
+                >
+                  <div className={`font-cinzel text-[10px] tracking-[0.3em] ${photoStyle === s.value ? "text-gold" : "text-cream-50"}`}>{s.label}</div>
+                  <div className="mt-1 font-mont text-[9px] tracking-widest text-cream-200/55">{s.sub}</div>
+                </button>
+              ))}
+            </div>
           </Field>
 
           {/* 2 · Anı & Tarih */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2">
-              <Field label="02 · ANI & TARİH · CÜMLE">
+              <Field label="02 · ANI CÜMLENİZ">
                 <textarea
                   rows={3}
                   value={quote}
@@ -160,30 +174,22 @@ export default function Customize() {
                 <div className="mt-1 font-mont text-[10px] tracking-widest text-cream-200/40 text-right">{quote.length}/140</div>
               </Field>
             </div>
-            <div>
-              <Field label="ÖZEL TARİH">
-                <input
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  data-testid="date-input"
-                  className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm"
-                />
-                {zodiac && (
-                  <div className="mt-2 font-mont text-[11px] tracking-widest text-cream-200/60">
-                    BURÇ: <span className="text-gold">{zodiac.toUpperCase()}</span>
-                  </div>
-                )}
-              </Field>
-            </div>
+            <Field label="ÖZEL TARİH">
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                data-testid="date-input"
+                className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm"
+              />
+            </Field>
           </div>
 
-          {/* 3 · Konum & Burç */}
-          <Field label="03 · KONUM & BURÇ">
+          {/* 3 · Konum */}
+          <Field label="03 · KONUM">
             <CitySelect value={city} onChange={setCity} />
             <div className="mt-2 font-mont text-[11px] tracking-widest text-cream-200/60">
               {city.lat.toFixed(4)}° {city.lat >= 0 ? "N" : "S"} · {city.lon.toFixed(4)}° {city.lon >= 0 ? "E" : "W"}
-              {zodiac ? <span className="ml-3">· BURÇ <span className="text-gold">{zodiac.toUpperCase()}</span></span> : null}
             </div>
           </Field>
 
@@ -215,46 +221,22 @@ export default function Customize() {
               <Input value={customerPhone} onChange={setCustomerPhone} testId="phone-input" placeholder="+90 ..." />
             </Field>
             <Field label="ADRES" full>
-              <textarea
-                rows={3}
-                value={deliveryAddress}
-                onChange={(e) => setDeliveryAddress(e.target.value)}
-                data-testid="address-input"
-                className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm resize-none"
-              />
+              <textarea rows={3} value={deliveryAddress} onChange={(e) => setDeliveryAddress(e.target.value)} data-testid="address-input" className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm resize-none" />
             </Field>
             <Field label="NOTLAR (Opsiyonel)" full>
-              <textarea
-                rows={2}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                data-testid="notes-input"
-                className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm resize-none"
-              />
+              <textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} data-testid="notes-input" className="w-full bg-midnight-900 border border-cream-50/10 px-4 py-3 font-mont text-sm text-cream-50 focus:outline-none focus:border-gold/60 rounded-sm resize-none" />
             </Field>
           </div>
 
-          {/* Upsell — Hediye Paketi & Mesaj Kartı */}
+          {/* Upsell */}
           <div className="pt-2">
             <span className="font-cinzel text-[11px] tracking-[0.45em] text-gold">06 · ÖZEL DOKUNUŞ</span>
             <p className="mt-2 mb-4 font-mont text-xs text-cream-200/55">
-              Tablonuzu unutulmaz bir hediyeye dönüştürmek için aşağıdaki seçenekleri ekleyebilirsiniz.
+              Masaüstü tablonuzu unutulmaz bir hediyeye dönüştürmek için aşağıdaki seçenekleri ekleyebilirsiniz.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <UpsellOption
-                checked={giftPackage}
-                onChange={setGiftPackage}
-                title="Premium Hediye Paketi"
-                desc="Kraft kutu · altın kurdele · özel teslim ambalajı"
-                testId="upsell-gift-package"
-              />
-              <UpsellOption
-                checked={messageCard}
-                onChange={setMessageCard}
-                title="Elle Yazılmış Mesaj Kartı"
-                desc="Cinzel font · altın baskılı · sevdiğine özel not"
-                testId="upsell-message-card"
-              />
+              <UpsellOption checked={giftPackage} onChange={setGiftPackage} title="Premium Hediye Paketi" desc="Kraft kutu · altın kurdele · özel teslim ambalajı" testId="upsell-gift-package" />
+              <UpsellOption checked={messageCard} onChange={setMessageCard} title="Elle Yazılmış Mesaj Kartı" desc="Cinzel font · altın baskılı · sevdiğine özel not" testId="upsell-message-card" />
             </div>
           </div>
 
@@ -273,14 +255,14 @@ export default function Customize() {
         <aside className="lg:col-span-5">
           <div className="lg:sticky lg:top-28">
             <div className="font-cinzel text-[11px] tracking-[0.45em] text-gold mb-4 text-center lg:text-left">
-              CANLI ÖNİZLEME · 30×50 CM · PLEKSİ
+              CANLI ÖNİZLEME · 15×20 CM · MASAÜSTÜ PLEKSİ
             </div>
             <PosterPreview
               photoUrl={photoUrl}
+              photoStyle={photoStyle}
               quote={quote}
               date={date}
               city={city}
-              zodiac={zodiac}
               spotifyUrl={spotifyUrl}
             />
             <p className="mt-4 font-mont text-[11px] text-cream-200/50 text-center lg:text-left">
@@ -321,18 +303,10 @@ function UpsellOption({ checked, onChange, title, desc, testId }) {
       type="button"
       onClick={() => onChange(!checked)}
       data-testid={testId}
-      className={`text-left p-5 border transition group ${
-        checked
-          ? "border-gold bg-gold/5"
-          : "border-cream-50/10 bg-midnight-900/40 hover:border-gold/40"
-      }`}
+      className={`text-left p-5 border transition ${checked ? "border-gold bg-gold/5" : "border-cream-50/10 bg-midnight-900/40 hover:border-gold/40"}`}
     >
       <div className="flex items-start gap-4">
-        <div
-          className={`w-5 h-5 mt-0.5 border flex items-center justify-center shrink-0 ${
-            checked ? "bg-gold border-gold" : "border-cream-50/25"
-          }`}
-        >
+        <div className={`w-5 h-5 mt-0.5 border flex items-center justify-center shrink-0 ${checked ? "bg-gold border-gold" : "border-cream-50/25"}`}>
           {checked ? <span className="text-midnight-950 text-xs">✓</span> : null}
         </div>
         <div>

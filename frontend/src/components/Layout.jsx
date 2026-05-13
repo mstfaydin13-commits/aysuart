@@ -1,6 +1,7 @@
 import React from "react";
 import { Link, NavLink, Outlet } from "react-router-dom";
-import { Star } from "lucide-react";
+import { Star, User as UserIcon, LogIn } from "lucide-react";
+import { useAuth } from "../lib/auth";
 
 const navItems = [
   { to: "/", label: "Anasayfa" },
@@ -23,12 +24,11 @@ export default function Layout() {
 }
 
 function Header() {
+  const auth = useAuth?.() || {};
+  const user = auth.user;
   return (
-    <header
-      data-testid="site-header"
-      className="sticky top-0 z-50 glass"
-    >
-      <div className="max-w-7xl mx-auto px-6 md:px-10 h-20 flex items-center justify-between">
+    <header data-testid="site-header" className="sticky top-0 z-50 glass">
+      <div className="max-w-7xl mx-auto px-6 md:px-10 h-20 flex items-center justify-between gap-4">
         <Link to="/" data-testid="brand-logo" className="flex items-center gap-3 group">
           <span className="w-9 h-9 rounded-full border border-gold/60 flex items-center justify-center group-hover:bg-gold/10 transition">
             <Star className="w-4 h-4 text-gold" strokeWidth={1.5} />
@@ -46,7 +46,7 @@ function Header() {
               end={it.to === "/"}
               data-testid={`nav-${it.to.replace("/", "") || "home"}`}
               className={({ isActive }) =>
-                `px-4 py-2 font-mont text-[12px] uppercase tracking-[0.2em] transition border-b ${
+                `px-3 py-2 font-mont text-[12px] uppercase tracking-[0.2em] transition border-b ${
                   isActive ? "text-gold border-gold" : "text-cream-50/80 border-transparent hover:text-gold"
                 }`
               }
@@ -55,9 +55,24 @@ function Header() {
             </NavLink>
           ))}
         </nav>
-        <Link to="/customize" data-testid="header-cta" className="btn-gold hidden sm:inline-flex">
-          Tablonu Tasarla
-        </Link>
+        <div className="flex items-center gap-2">
+          {user && user.role === "customer" ? (
+            <Link to="/account" data-testid="header-account-link" className="hidden sm:inline-flex items-center gap-2 px-3 py-2 font-mont text-[11px] uppercase tracking-[0.2em] text-cream-50/85 hover:text-gold transition">
+              <UserIcon className="w-4 h-4" /> Hesabım
+            </Link>
+          ) : user && user.role === "admin" ? (
+            <Link to="/admin" data-testid="header-admin-link" className="hidden sm:inline-flex items-center gap-2 px-3 py-2 font-mont text-[11px] uppercase tracking-[0.2em] text-gold transition">
+              Yönetim
+            </Link>
+          ) : (
+            <Link to="/login" data-testid="header-login-link" className="hidden sm:inline-flex items-center gap-2 px-3 py-2 font-mont text-[11px] uppercase tracking-[0.2em] text-cream-50/85 hover:text-gold transition">
+              <LogIn className="w-4 h-4" /> Giriş
+            </Link>
+          )}
+          <Link to="/customize" data-testid="header-cta" className="btn-gold hidden sm:inline-flex">
+            Tablonu Tasarla
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -71,8 +86,8 @@ function Footer() {
           <div className="font-display text-2xl">Aysu Art</div>
           <div className="font-cinzel text-[10px] text-cream-200/70 mt-2">UNUTULMAZ ANILAR · YILDIZLARIN ALTINDA</div>
           <p className="font-mont text-sm text-cream-200/80 mt-6 max-w-md leading-relaxed">
-            O özel anın gökyüzünü, fotoğrafınızı ve müziğinizi tek bir sanat eserinde buluşturuyoruz. 30×50 cm
-            premium pleksi, el işçiliğiyle üretilir.
+            O özel anın gökyüzünü, fotoğrafınızı ve müziğinizi tek bir sanat eserinde buluşturuyoruz. 15×20 cm
+            masaüstü premium pleksi, el işçiliğiyle üretilir.
           </p>
         </div>
         <div>
@@ -82,14 +97,20 @@ function Footer() {
             <li><Link to="/gallery" className="hover:text-gold">Galeri</Link></li>
             <li><Link to="/about" className="hover:text-gold">Hikayemiz</Link></li>
             <li><Link to="/faq" className="hover:text-gold">SSS</Link></li>
+            <li><Link to="/login" className="hover:text-gold">Hesabım</Link></li>
           </ul>
         </div>
         <div>
-          <h4 className="font-cinzel text-[11px] tracking-[0.25em] text-gold">İLETİŞİM</h4>
+          <h4 className="font-cinzel text-[11px] tracking-[0.25em] text-gold">YASAL</h4>
           <ul className="mt-4 space-y-2 font-mont text-sm text-cream-200/80">
-            <li>hello@aysuart.com</li>
-            <li>+90 555 000 00 00</li>
-            <li>İstanbul · Türkiye</li>
+            <li><Link to="/sozlesme" className="hover:text-gold">Mesafeli Satış Sözleşmesi</Link></li>
+            <li><Link to="/gizlilik" className="hover:text-gold">Gizlilik Politikası</Link></li>
+            <li><Link to="/iade" className="hover:text-gold">İptal & İade</Link></li>
+            <li><Link to="/kvkk" className="hover:text-gold">KVKK Aydınlatma</Link></li>
+          </ul>
+          <h4 className="mt-6 font-cinzel text-[11px] tracking-[0.25em] text-gold">İLETİŞİM</h4>
+          <ul className="mt-3 space-y-1 font-mont text-sm text-cream-200/80">
+            <li>info@aysuart.com</li>
           </ul>
         </div>
       </div>

@@ -4,18 +4,18 @@ import StarMap from "./StarMap";
 import SpotifyQR from "./SpotifyQR";
 
 /**
- * 30x50 vertical poster preview.
- * Props:
- *   watermark: bool — overlays repeating ÖRNEK · AYSU ART (anti-piracy)
- *   protect: bool — disables right-click and selection
- *   id: string — used by html2canvas to target
+ * 15x20 cm masaüstü pleksi (vertical 3:4).
+ * - Photo at top (style switchable)
+ * - Quote + date in middle
+ * - Oval star map at bottom
+ * - City + coords bottom-left, QR bottom-right
  */
 export default function PosterPreview({
   photoUrl,
+  photoStyle = "duotone",
   quote,
   date,
   city,
-  zodiac,
   spotifyUrl,
   watermark = false,
   protect = false,
@@ -38,7 +38,7 @@ export default function PosterPreview({
       id={id}
       className="relative mx-auto"
       style={{
-        aspectRatio: "3 / 5",
+        aspectRatio: "3 / 4",
         width: "100%",
         maxWidth: 420,
         background: "linear-gradient(180deg, #0A1128 0%, #050B1F 60%, #040814 100%)",
@@ -52,15 +52,14 @@ export default function PosterPreview({
     >
       <div className="absolute inset-0 grain pointer-events-none" />
 
-      <div className="relative" style={{ width: "100%", aspectRatio: "1 / 0.95" }}>
+      <div className="relative" style={{ width: "100%", aspectRatio: "1 / 0.85" }}>
         <DuotonePhoto
           src={photoUrl}
+          style={photoStyle}
           width={840}
-          height={800}
-          shadow="#040814"
-          highlight="#B7C4DE"
-          fadeBottom={0.5}
-          vignette={0.55}
+          height={714}
+          fadeBottom={0.45}
+          vignette={0.5}
         />
       </div>
 
@@ -69,7 +68,7 @@ export default function PosterPreview({
           data-testid="poster-quote"
           className="font-display italic text-cream-50 leading-snug"
           style={{
-            fontSize: "clamp(13px, 2.5vw, 21px)",
+            fontSize: "clamp(13px, 2.4vw, 20px)",
             textShadow: "0 1px 6px rgba(0,0,0,0.6)",
           }}
         >
@@ -84,13 +83,14 @@ export default function PosterPreview({
         </div>
       </div>
 
-      <div className="relative px-4 mt-3 flex justify-center">
-        <div style={{ width: "82%", maxWidth: 320 }}>
+      <div className="relative px-4 mt-2 flex justify-center">
+        <div style={{ width: "78%", maxWidth: 300 }}>
           <StarMap
             date={date || "2024-01-01"}
             lat={city?.lat ?? 41.0082}
             lon={city?.lon ?? 28.9784}
-            size={320}
+            width={300}
+            height={350}
           />
         </div>
       </div>
@@ -102,11 +102,6 @@ export default function PosterPreview({
         >
           {(city?.name || "İSTANBUL").toUpperCase()}
         </div>
-        {zodiac ? (
-          <div className="font-mont text-[7.5px] md:text-[8.5px] tracking-[0.28em] text-cream-200/60 mt-0.5">
-            {zodiac.toUpperCase()} · BURÇ
-          </div>
-        ) : null}
         <div className="font-mont text-[7px] md:text-[8px] tracking-[0.22em] text-cream-200/55 mt-0.5">
           {coords}
         </div>
@@ -122,7 +117,6 @@ export default function PosterPreview({
 }
 
 function Watermark() {
-  // Repeating diagonal "ÖRNEK · AYSU ART" overlay
   const lines = Array.from({ length: 14 });
   return (
     <div
@@ -130,10 +124,7 @@ function Watermark() {
       className="absolute inset-0 pointer-events-none flex items-center justify-center overflow-hidden"
       data-testid="poster-watermark"
     >
-      <div
-        className="origin-center"
-        style={{ transform: "rotate(-30deg)", width: "200%", height: "200%" }}
-      >
+      <div className="origin-center" style={{ transform: "rotate(-30deg)", width: "200%", height: "200%" }}>
         {lines.map((_, i) => (
           <div
             key={i}
@@ -164,15 +155,10 @@ function formatPosterDate(d) {
   if (!d) return "";
   const dt = new Date(d);
   if (isNaN(dt.getTime())) return "";
-  const months = [
-    "OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN",
-    "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK",
-  ];
+  const months = ["OCAK", "ŞUBAT", "MART", "NİSAN", "MAYIS", "HAZİRAN", "TEMMUZ", "AĞUSTOS", "EYLÜL", "EKİM", "KASIM", "ARALIK"];
   return `${pad2(dt.getDate())} · ${months[dt.getMonth()]} · ${dt.getFullYear()}`;
 }
-
 function pad2(n) { return n < 10 ? `0${n}` : `${n}`; }
-
 function formatCoords(lat, lon) {
   const ns = lat >= 0 ? "N" : "S";
   const ew = lon >= 0 ? "E" : "W";

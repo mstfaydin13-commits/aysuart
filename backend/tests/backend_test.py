@@ -306,3 +306,153 @@ def test_admin_update_status_404(session, admin_token):
                       json={"status": "approved"},
                       headers={"Authorization": f"Bearer {admin_token}"})
     assert r.status_code == 404
+
+
+# ---------- iteration 3: photo_style ----------
+import uuid as _uuid
+
+
+def test_create_order_with_photo_style(session, uploaded):
+    payload = {
+        "photo_file_id": uploaded["file_id"],
+        "photo_style": "sepia",
+        "memory_date": "2024-06-15",
+        "city_name": "İstanbul", "city_lat": 41.0, "city_lon": 28.97,
+        "quote_text": "TEST_ sepia order",
+        "customer_name": "TEST_ Sepia", "customer_email": "sepia@example.com",
+        "customer_phone": "+905551112201", "delivery_address": "TEST_ addr",
+    }
+    r = session.post(f"{API}/orders", json=payload)
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j.get("photo_style") == "sepia", f"photo_style not persisted in create response: {j.get('photo_style')}"
+
+    # GET verifies persistence
+    r2 = session.get(f"{API}/orders/{j['id']}")
+    assert r2.json().get("photo_style") == "sepia", "photo_style not persisted in DB (GET)"
+
+    # public memory should also have it
+    r3 = session.get(f"{API}/memory/{j['id']}")
+    assert r3.json().get("photo_style") == "sepia"
+
+
+def test_create_order_default_photo_style(session, uploaded):
+    payload = {
+        "photo_file_id": uploaded["file_id"],
+        "memory_date": "2024-06-15",
+        "city_name": "Ankara", "city_lat": 39.9, "city_lon": 32.8,
+        "quote_text": "TEST_ default style",
+        "customer_name": "TEST_ Def", "customer_email": "defstyle@example.com",
+        "customer_phone": "+905551112202", "delivery_address": "TEST_ addr",
+    }
+    r = session.post(f"{API}/orders", json=payload)
+    assert r.status_code == 200
+    assert r.json().get("photo_style") == "duotone"
+
+
+@pytest.mark.parametrize("style", ["duotone", "sepia", "bw", "sketch", "original"])
+def test_all_photo_styles_accepted(session, uploaded, style):
+    payload = {
+        "photo_file_id": uploaded["file_id"],
+        "photo_style": style,
+        "memory_date": "2024-06-15",
+        "city_name": "İzmir", "city_lat": 38.4, "city_lon": 27.1,
+        "quote_text": f"TEST_ style {style}",
+        "customer_name": "TEST_", "customer_email": f"style_{style}@x.com",
+        "customer_phone": "+905551110000", "delivery_address": "TEST_",
+    }
+    r = session.post(f"{API}/orders", json=payload)
+    assert r.status_code == 200, r.text
+    assert r.json().get("photo_style") == style
+
+
+# ---------- iteration 3: customer auth ----------
+@pytest.fixture(scope="session")
+def customer_creds():
+    return {
+        "email": f"test_cust_{_uuid.uuid4().hex[:8]}@example.com",
+        "password": "TestPass123",
+        "name": "TEST_ Customer",
+        "phone": "+905551110000",
+    }
+
+
+@pytest.fixture(scope="session")
+def customer_token(session, customer_creds):
+    r = session.post(f"{API}/auth/register", json=customer_creds)
+    assert r.status_code == 200, r.text
+    j = r.json()
+    assert j["user"]["role"] == "customer"
+    assert j["user"]["email"] == customer_creds["email"]
+    assert "password_hash" not in j["user"]
+    return j["access_token"]
+
+
+def test_register_returns_token(customer_token):
+    assert isinstance(customer_token, str) and len(customer_token) > 20
+
+
+def test_register_duplicate_email(session, customer_creds, customer_token):
+    r = session.post(f"{API}/auth/register", json=customer_creds)
+    assert r.status_code == 400
+
+
+def test_register_short_password(session):
+    r = session.post(f"{API}/auth/register", json={
+        "email": f"short_{_uuid.uuid4().hex[:6]}@x.com",
+        "password": "abc", "name": "x",
+    })
+    assert r.status_code == 400
+
+
+def test_customer_login(session, customer_creds, customer_token):
+    r = session.post(f"{API}/auth/login", json={
+        "email": customer_creds["email"], "password": customer_creds["password"],
+    })
+    assert r.status_code == 200
+    assert r.json()["user"]["role"] == "customer"
+
+
+def test_auth_me_customer(session, customer_token, customer_creds):
+    r = session.get(f"{API}/auth/me", headers={"Authorization": f"Bearer {customer_token}"})
+    assert r.status_code == 200
+    assert r.json()["email"] == customer_creds["email"]
+    assert r.json()["role"] == "customer"
+
+
+def test_me_orders_empty(session, customer_token):
+    r = session.get(f"{API}/me/orders", headers={"Authorization": f"Bearer {customer_token}"})
+    assert r.status_code == 200
+    assert r.json()["orders"] == []
+
+
+def test_me_orders_after_create(session, customer_token, customer_creds, uploaded):
+    payload = {
+        "photo_file_id": uploaded["file_id"],
+        "photo_style": "bw",
+        "memory_date": "2024-06-15",
+        "city_name": "İstanbul", "city_lat": 41.0, "city_lon": 28.97,
+        "quote_text": "TEST_ my order",
+        "customer_name": customer_creds["name"],
+        "customer_email": customer_creds["email"],
+        "customer_phone": customer_creds["phone"],
+        "delivery_address": "TEST_ addr",
+    }
+    r = session.post(f"{API}/orders", json=payload)
+    assert r.status_code == 200
+    order_id = r.json()["id"]
+
+    r2 = session.get(f"{API}/me/orders", headers={"Authorization": f"Bearer {customer_token}"})
+    assert r2.status_code == 200
+    ids = [o["id"] for o in r2.json()["orders"]]
+    assert order_id in ids
+
+
+def test_me_orders_requires_auth(session):
+    r = session.get(f"{API}/me/orders")
+    assert r.status_code == 401
+
+
+def test_customer_cannot_access_admin(session, customer_token):
+    r = session.get(f"{API}/admin/orders", headers={"Authorization": f"Bearer {customer_token}"})
+    assert r.status_code == 403

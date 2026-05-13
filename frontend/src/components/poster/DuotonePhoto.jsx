@@ -1,34 +1,26 @@
 import React, { useEffect, useRef, useState } from "react";
 
 /**
- * DuotonePhoto - applies a desaturate + gradient map effect to an image.
- * Renders a canvas. Uses CSS filters AND canvas pixel shader for true duotone.
- *
+ * Photo treatment for poster.
  * Props:
- *   src: string (image url)
- *   shadow: hex (deep navy)
- *   highlight: hex (lighter cream/gold or pale blue)
- *   width, height: canvas dimensions in px
- *   fadeBottom: 0..1 fraction of bottom to fade
+ *   style: 'duotone' | 'sepia' | 'bw' | 'sketch' | 'original'
  */
 export default function DuotonePhoto({
   src,
-  shadow = "#040814",
-  highlight = "#C9D6F0",
+  style = "duotone",
   width = 600,
   height = 600,
-  fadeBottom = 0.45,
+  fadeBottom = 0.5,
   vignette = 0.55,
   dataTestId = "duotone-photo",
 }) {
   const canvasRef = useRef(null);
-  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!src) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
     canvas.width = width;
     canvas.height = height;
 
@@ -39,36 +31,16 @@ export default function DuotonePhoto({
       const ir = img.width / img.height;
       const cr = width / height;
       let sx = 0, sy = 0, sw = img.width, sh = img.height;
-      if (ir > cr) {
-        sw = img.height * cr;
-        sx = (img.width - sw) / 2;
-      } else {
-        sh = img.width / cr;
-        sy = (img.height - sh) / 2;
-      }
+      if (ir > cr) { sw = img.height * cr; sx = (img.width - sw) / 2; }
+      else { sh = img.width / cr; sy = (img.height - sh) / 2; }
       ctx.clearRect(0, 0, width, height);
       ctx.drawImage(img, sx, sy, sw, sh, 0, 0, width, height);
 
-      // pixel-level duotone via gradient map
       try {
-        const imageData = ctx.getImageData(0, 0, width, height);
-        const data = imageData.data;
-        const sh1 = hexToRgb(shadow);
-        const hi = hexToRgb(highlight);
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i], g = data[i + 1], b = data[i + 2];
-          // luminance
-          const l = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-          data[i] = Math.round(sh1.r + (hi.r - sh1.r) * l);
-          data[i + 1] = Math.round(sh1.g + (hi.g - sh1.g) * l);
-          data[i + 2] = Math.round(sh1.b + (hi.b - sh1.b) * l);
-        }
-        ctx.putImageData(imageData, 0, 0);
-      } catch (e) {
-        // tainted canvas - fallback CSS only
-      }
+        applyStyle(ctx, width, height, style);
+      } catch (e) { /* tainted canvas - skip */ }
 
-      // vignette - top, left, right
+      // vignette
       const vg = ctx.createRadialGradient(
         width / 2, height * 0.45, Math.min(width, height) * 0.25,
         width / 2, height * 0.45, Math.max(width, height) * 0.75
@@ -85,9 +57,8 @@ export default function DuotonePhoto({
       ctx.fillStyle = fg;
       ctx.fillRect(0, height * (1 - fadeBottom), width, height * fadeBottom);
     };
-    img.onerror = () => setError(true);
     img.src = src;
-  }, [src, shadow, highlight, width, height, fadeBottom, vignette]);
+  }, [src, style, width, height, fadeBottom, vignette]);
 
   if (!src) {
     return (
@@ -110,9 +81,47 @@ export default function DuotonePhoto({
   );
 }
 
-function hexToRgb(hex) {
-  const h = hex.replace("#", "");
-  const v = h.length === 3 ? h.split("").map((c) => c + c).join("") : h;
-  const num = parseInt(v, 16);
-  return { r: (num >> 16) & 255, g: (num >> 8) & 255, b: num & 255 };
+function applyStyle(ctx, w, h, style) {
+  if (style === "original") return; // no filter
+  const imageData = ctx.getImageData(0, 0, w, h);
+  const data = imageData.data;
+  if (style === "duotone") {
+    const shadow = { r: 4, g: 8, b: 20 };
+    const hi = { r: 183, g: 196, b: 222 }; // #B7C4DE
+    for (let i = 0; i < data.length; i += 4) {
+      const l = (0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]) / 255;
+      data[i]     = Math.round(shadow.r + (hi.r - shadow.r) * l);
+      data[i + 1] = Math.round(shadow.g + (hi.g - shadow.g) * l);
+      data[i + 2] = Math.round(shadow.b + (hi.b - shadow.b) * l);
+    }
+  } else if (style === "sepia") {
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i], g = data[i + 1], b = data[i + 2];
+      data[i]     = Math.min(255, 0.393 * r + 0.769 * g + 0.189 * b);
+      data[i + 1] = Math.min(255, 0.349 * r + 0.686 * g + 0.168 * b);
+      data[i + 2] = Math.min(255, 0.272 * r + 0.534 * g + 0.131 * b);
+    }
+  } else if (style === "bw") {
+    for (let i = 0; i < data.length; i += 4) {
+      const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      // slight S-curve contrast
+      const v = clamp(((l / 255 - 0.5) * 1.25 + 0.5) * 255);
+      data[i] = data[i + 1] = data[i + 2] = v;
+    }
+  } else if (style === "sketch") {
+    // pencil sketch: invert + blur-ish + dodge
+    // Simple edge-emphasis: convert to grayscale then mix with inverted-blurred copy
+    // We'll do a fast approximation: high contrast B&W + paper warmth
+    for (let i = 0; i < data.length; i += 4) {
+      const l = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      const lifted = clamp(255 - (255 - l) * 0.55);
+      const v = clamp(((lifted / 255 - 0.45) * 1.6 + 0.65) * 255);
+      data[i]     = v * 0.96;
+      data[i + 1] = v * 0.93;
+      data[i + 2] = v * 0.85;
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
 }
+
+function clamp(v) { return Math.max(0, Math.min(255, v)); }

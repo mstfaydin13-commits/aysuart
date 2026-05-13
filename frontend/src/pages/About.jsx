@@ -21,7 +21,7 @@ export default function About() {
           kodu ise anınıza eşlik eden şarkıyı taşır.
         </p>
         <p>
-          Premium pleksi üzerinde, 30×50 cm dikey formatta ürettiğimiz tablolar; el işçiliğiyle son
+          Premium pleksi üzerinde, 15×20 cm masaüstü formatta ürettiğimiz tablolar; el işçiliğiyle son
           rötuşlardan geçirilir ve sevdiklerine özel bir hediye paketinde teslim edilir.
         </p>
       </div>

@@ -55,10 +55,10 @@ export default function OrderSuccess() {
         <div>
           <PosterPreview
             photoUrl={photoUrl}
+            photoStyle={order.photo_style || "duotone"}
             quote={order.quote_text}
             date={order.memory_date}
             city={{ name: order.city_name, lat: order.city_lat, lon: order.city_lon }}
-            zodiac={order.zodiac}
             spotifyUrl={order.spotify_url}
             watermark
             protect

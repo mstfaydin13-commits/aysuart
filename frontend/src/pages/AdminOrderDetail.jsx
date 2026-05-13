@@ -92,10 +92,10 @@ export default function AdminOrderDetail() {
           {/* Admin sees clean poster (no watermark) for production-ready PNG */}
           <PosterPreview
             photoUrl={photoUrl}
+            photoStyle={order.photo_style || "duotone"}
             quote={order.quote_text}
             date={order.memory_date}
             city={{ name: order.city_name, lat: order.city_lat, lon: order.city_lon }}
-            zodiac={order.zodiac}
             spotifyUrl={order.spotify_url}
           />
           <p className="mt-3 font-mont text-[10px] tracking-widest text-cream-200/40 text-center">PRODUCTION-READY · WATERMARK YOK</p>

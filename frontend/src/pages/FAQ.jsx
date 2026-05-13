@@ -7,7 +7,7 @@ import {
 } from "../components/ui/accordion";
 
 const Q = [
-  { q: "Tablo boyutu nedir?", a: "Standart boyutumuz 30×50 cm dikey pleksidir. Talep üzerine farklı boyutlar üretebiliriz." },
+  { q: "Tablo boyutu nedir?", a: "Standart boyutumuz 15×20 cm masaüstü pleksidir. Talep üzerine farklı boyutlar üretebiliriz." },
   { q: "Yıldız haritası gerçek mi?", a: "Evet. Tarih ve şehir koordinatlarınızdan o anın gökyüzü hesaplanır ve dairesel haritaya işlenir." },
   { q: "Hangi tarihler kullanılabilir?", a: "Geçmiş veya gelecek herhangi bir tarihi kullanabilirsiniz. Yıl dönümü, doğum günü, evlilik teklifi gibi." },
   { q: "Fotoğraf kalitesi nasıl olmalı?", a: "Net, yüksek çözünürlüklü (en az 1500×1500 piksel önerilir) ve yüzlerin tablonun üst kısmına yakın çerçevelenmiş olması idealdir." },

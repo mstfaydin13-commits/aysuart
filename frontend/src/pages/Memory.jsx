@@ -60,7 +60,7 @@ export default function Memory() {
           <div className="mt-2 font-mont text-[12px] tracking-widest text-cream-200/65">
             {Math.abs(data.city_lat).toFixed(4)}° {data.city_lat >= 0 ? "N" : "S"} · {Math.abs(data.city_lon).toFixed(4)}° {data.city_lon >= 0 ? "E" : "W"}
           </div>
-          {data.zodiac ? <div className="mt-1 font-mont text-[12px] tracking-widest text-cream-200/65">{data.zodiac.toUpperCase()} · BURÇ</div> : null}
+          {/* Burç gösterimi kaldırıldı */}
 
           {data.spotify_url ? (
             <a href={data.spotify_url} target="_blank" rel="noreferrer" className="mt-6 inline-flex items-center gap-2 font-mont text-sm text-gold hover:underline">
@@ -71,7 +71,7 @@ export default function Memory() {
           <div className="mt-12">
             <p className="font-mont text-sm text-cream-200/70 mb-5 leading-relaxed">
               Kendi anınızı sonsuza emanet etmek ister misiniz? Aysu Art ile siz de
-              30×50 cm pleksi üzerinde, gerçek yıldız haritanızla, sevdiğinize özel bir
+              15×20 cm masaüstü pleksi üzerinde, gerçek yıldız haritanızla, sevdiğinize özel bir
               hediye yaratın.
             </p>
             <Link to="/customize" className="btn-gold" data-testid="memory-cta">
@@ -83,3 +83,4 @@ export default function Memory() {
     </section>
   );
 }
+
