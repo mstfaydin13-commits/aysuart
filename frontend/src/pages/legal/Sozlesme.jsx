@@ -22,7 +22,7 @@ export default function Sozlesme() {
       <h2>2. Sözleşmenin Konusu</h2>
       <p>
         İşbu sözleşmenin konusu, Alıcı'nın Satıcı'ya ait <em>{COMPANY_INFO.website}</em> internet sitesinden elektronik
-        ortamda sipariş verdiği, kişiye özel olarak üretilen yıldız haritalı pleksi tablonun (30×50 cm) satışı ve teslimi
+        ortamda sipariş verdiği, kişiye özel olarak üretilen yıldız haritalı masaüstü pleksi tablonun (15×20 cm) satışı ve teslimi
         ile tarafların hak ve yükümlülüklerinin belirlenmesidir.
       </p>
 
