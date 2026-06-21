@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import html2canvas from "html2canvas";
 import { api } from "../lib/api";
 import PosterPreview from "../components/poster/PosterPreview";
 import { ArrowLeft, Download, Loader2 } from "lucide-react";
@@ -20,7 +19,6 @@ export default function AdminOrderDetail() {
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
-  const posterRef = useRef(null);
 
   useEffect(() => {
     api.get(`/admin/orders/${id}`)
@@ -39,22 +37,22 @@ export default function AdminOrderDetail() {
   };
 
   const downloadPNG = async () => {
-    if (!posterRef.current) return;
     setDownloading(true);
     try {
-      const canvas = await html2canvas(posterRef.current, {
-        backgroundColor: "#040814",
-        scale: 4, // ~1680x2800 px
-        useCORS: true,
-        allowTaint: false,
-        logging: false,
-      });
-      const dataUrl = canvas.toDataURL("image/png");
+      const token = localStorage.getItem("token");
+      const res = await fetch(
+        `${process.env.REACT_APP_BACKEND_URL}/api/admin/orders/${order.id}/download-png`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) throw new Error("Sunucu hatası");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = dataUrl;
+      link.href = url;
       link.download = `aysu-art-${order.id.slice(0, 8)}.png`;
       link.click();
-      toast.success("PNG indirildi");
+      URL.revokeObjectURL(url);
+      toast.success("PNG indirildi ✨");
     } catch (e) {
       toast.error("İndirme başarısız: " + (e.message || ""));
     } finally {
@@ -88,8 +86,7 @@ export default function AdminOrderDetail() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-        <div ref={posterRef}>
-          {/* Admin sees clean poster (no watermark) for production-ready PNG */}
+        <div>
           <PosterPreview
             photoUrl={photoUrl}
             photoStyle={order.photo_style || "duotone"}
